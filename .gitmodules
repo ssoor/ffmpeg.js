@@ -1,0 +1,18 @@
+[submodule "build/ffmpeg"]
+	path = build/ffmpeg
+	url = https://git.ffmpeg.org/ffmpeg.git
+[submodule "build/libass"]
+	path = build/libass
+	url = https://github.com/libass/libass.git
+[submodule "build/frididi"]
+	path = build/frididi
+	url = https://github.com/fribidi/fribidi.git
+[submodule "build/x264"]
+	path = build/x264
+	url = https://github.com/mirror/x264.git
+[submodule "build/libvpx"]
+	path = build/libvpx
+	url = https://github.com/webmproject/libvpx.git
+[submodule "build/lame"]
+	path = build/lame
+	url = https://hub.fastgit.org/Kagami/lame-svn.git
