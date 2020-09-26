@@ -1,0 +1,277 @@
+# Compile FFmpeg and all its dependencies to JavaScript.
+# You need emsdk environment installed and activated, see:
+# <https://kripken.github.io/emscripten-site/docs/getting_started/downloads.html>.
+
+PRE_JS = build/pre.js
+POST_JS = build/post.js
+PRE_JS_WEB = build/pre-web.js
+POST_JS_WEB = build/post-web.js
+
+FFMPEG_DEPS = 
+FFMPEG_DEPS_ARGS = $(MP4_DEPS_ARGS) $(WEBM_DEPS_ARGS)
+
+FFMPEG_FILTERS = 
+FFMPEG_MUXERS = ogg adts
+FFMPEG_DEMUXERS = matroska mov
+FFMPEG_ENCODERS = 
+FFMPEG_DECODERS = 
+
+FFMPEG_BC = build/dist/ffmpeg.bc
+FFMPEG_PC_PATH = ../dist/lib/pkgconfig
+
+all: web js
+
+js: ffmpeg.js
+web: ffmpeg-web.js
+
+clean: clean-js clean-dist \
+	clean-libvpx \
+	clean-lame clean-x264 clean-ffmpeg
+clean-js:
+	rm -f ffmpeg*.js
+clean-dist:
+	cd build/ && rm -rf dist
+clean-libvpx:
+	cd build/libvpx && git clean -xdf
+clean-lame:
+	cd build/lame && git clean -xdf
+clean-x264:
+	cd build/x264 && git clean -xdf
+clean-ffmpeg:
+	cd build/ffmpeg && git clean -xdf
+
+build/opus/configure:
+	cd build/opus && ./autogen.sh
+
+build/dist/lib/libopus.so: build/opus/configure
+	cd build/opus && \
+	emconfigure ./configure \
+		CFLAGS=-O3 \
+		--prefix="$$(pwd)/../dist" \
+		--disable-static \
+		--disable-doc \
+		--disable-extra-programs \
+		--disable-asm \
+		--disable-rtcd \
+		--disable-intrinsics \
+		--disable-hardening \
+		--disable-stack-protector \
+		&& \
+	emmake make -j && \
+	emmake make install
+
+build/dist/lib/libvpx.so:
+	cd build/libvpx && \
+	git reset --hard && \
+	patch -p1 < ../libvpx-fix-ld.patch && \
+	emconfigure ./configure \
+		--prefix="$$(pwd)/../dist" \
+		--target=generic-gnu \
+		--disable-dependency-tracking \
+		--disable-multithread \
+		--disable-runtime-cpu-detect \
+		--enable-shared \
+		--disable-static \
+		\
+		--disable-examples \
+		--disable-docs \
+		--disable-unit-tests \
+		--disable-webm-io \
+		--disable-libyuv \
+		--disable-vp8-decoder \
+		--disable-vp9 \
+		&& \
+	emmake make -j && \
+	emmake make install
+
+build/dist/lib/libmp3lame.so:
+	cd build/lame/lame && \
+	git reset --hard && \
+	patch -p2 < ../../lame-fix-ld.patch && \
+	emconfigure ./configure \
+		CFLAGS="-DNDEBUG -O3" \
+		--prefix="$$(pwd)/../../dist" \
+		--host=x86-none-linux \
+		--disable-static \
+		\
+		--disable-gtktest \
+		--disable-analyzer-hooks \
+		--disable-decoder \
+		--disable-frontend \
+		&& \
+	emmake make -j && \
+	emmake make install
+
+build/dist/lib/libx264.so:
+	cd build/x264 && \
+	emconfigure ./configure \
+		--prefix="$$(pwd)/../dist" \
+		--extra-cflags="-Wno-unknown-warning-option" \
+		--host=x86-none-linux \
+		--disable-cli \
+		--enable-shared \
+		--disable-opencl \
+		--disable-thread \
+		--disable-interlaced \
+		--bit-depth=8 \
+		--chroma-format=420 \
+		--disable-asm \
+		\
+		--disable-avs \
+		--disable-swscale \
+		--disable-lavf \
+		--disable-ffms \
+		--disable-gpac \
+		--disable-lsmash \
+		&& \
+	emmake make -j && \
+	emmake make install
+
+# TODO(Kagami): Emscripten documentation recommends to always use shared
+# libraries but it's not possible in case of ffmpeg because it has
+# multiple declarations of `ff_log2_tab` symbol. GCC builds FFmpeg fine
+# though because it uses version scripts and so `ff_log2_tag` symbols
+# are not exported to the shared libraries. Seems like `emcc` ignores
+# them. We need to file bugreport to upstream. See also:
+# - <https://kripken.github.io/emscripten-site/docs/compiling/Building-Projects.html>
+# - <https://github.com/kripken/emscripten/issues/831>
+# - <https://ffmpeg.org/pipermail/libav-user/2013-February/003698.html>
+FFMPEG_COMMON_ARGS = \
+	--cc=emcc \
+	--prefix="$$(pwd)/../dist" \
+	--ranlib=emranlib \
+	--enable-cross-compile \
+	--target-os=none \
+	--arch=x86 \
+	--disable-runtime-cpudetect \
+	--disable-asm \
+	--disable-fast-unaligned \
+	--disable-pthreads \
+	--disable-w32threads \
+	--disable-os2threads \
+	--disable-debug \
+	--disable-stripping \
+	--disable-safe-bitstream-reader \
+	\
+	--disable-all \
+  --disable-logging \
+  --disable-runtime-cpudetect \
+  --disable-swscale-alpha \
+  --disable-all \
+  --disable-autodetect \
+  --disable-programs \
+  --disable-ffmpeg \
+  --disable-ffplay \
+  --disable-ffprobe \
+  --disable-doc \
+  --disable-htmlpages \
+  --disable-manpages \
+  --disable-podpages \
+  --disable-txtpages \
+  --disable-avdevice \
+  --disable-avcodec \
+  --disable-avformat \
+  --disable-swresample \
+  --disable-swscale \
+  --disable-postproc \
+  --disable-avfilter \
+  --disable-pthreads \
+  --disable-w32threads \
+  --disable-os2threads \
+  --disable-network \
+  --disable-dct \
+  --disable-dwt \
+  --disable-error-resilience \
+  --disable-lsp \
+  --disable-lzo \
+  --disable-mdct \
+  --disable-rdft \
+  --disable-fft \
+  --disable-faan \
+  --disable-pixelutils \
+  --disable-everything \
+  --disable-encoders \
+  --disable-decoders \
+  --disable-hwaccels \
+  --disable-muxers \
+  --disable-demuxers \
+  --disable-parsers \
+  --disable-bsfs \
+  --disable-protocols \
+  --disable-indevs \
+  --disable-outdevs \
+  --disable-devices \
+  --disable-filters \
+  --disable-alsa \
+  --disable-appkit \
+  --disable-avfoundation \
+  --disable-bzlib \
+  --disable-coreimage \
+  --disable-iconv \
+  --disable-lzma \
+  --disable-sndio \
+  --disable-schannel \
+  --disable-sdl2 \
+  --disable-securetransport \
+  --disable-xlib \
+  --disable-zlib \
+  --disable-amf \
+  --disable-audiotoolbox \
+  --disable-cuda-llvm \
+  --disable-cuvid \
+  --disable-d3d11va \
+  --disable-dxva2 \
+  --disable-ffnvcodec \
+  --disable-nvdec \
+  --disable-nvenc \
+  --disable-v4l2-m2m \
+	--enable-ffmpeg \
+	--enable-avcodec \
+	--enable-avformat \
+	--enable-avfilter \
+	--enable-swresample \
+	--enable-swscale \
+	--enable-protocol=file \
+	$(addprefix --enable-filter=,$(FFMPEG_FILTERS)) \
+	$(addprefix --enable-muxer=,$(FFMPEG_MUXERS)) \
+	$(addprefix --enable-demuxer=,$(FFMPEG_DEMUXERS)) \
+	$(addprefix --enable-encoder=,$(FFMPEG_ENCODERS)) \
+	$(addprefix --enable-decoder=,$(FFMPEG_DECODERS)) \
+
+
+build/dist/ffmpeg.bc:
+	cd build/ffmpeg && \
+	EM_PKG_CONFIG_PATH=$(FFMPEG_PC_PATH) emconfigure ./configure \
+		$(FFMPEG_DEPS_ARGS) \
+		$(FFMPEG_COMMON_ARGS) \
+		--enable-gpl \
+		--extra-cflags="-I../dist/include" \
+		--extra-ldflags="-L../dist/lib -shared" && \
+		sed -i 's/EXESUF=/EXESUF=.bc/' ffbuild/config.mak && \
+		emmake make install -j && \
+		cp ffmpeg.bc ../dist/ffmpeg.bc
+
+EMCC_COMMON_ARGS = \
+	-O2 \
+	--closure 0 \
+	--memory-init-file 0 \
+	-s WASM=0 \
+	-s WASM_ASYNC_COMPILATION=0 \
+	-s ASSERTIONS=0 \
+	-s EXIT_RUNTIME=1 \
+	-s NODEJS_CATCH_EXIT=0 \
+	-s NODEJS_CATCH_REJECTION=0 \
+	-s TOTAL_MEMORY=67108864 \
+	-o $@
+
+ffmpeg.js: $(FFMPEG_DEPS) $(FFMPEG_BC) $(PRE_JS) $(POST_JS)
+	emcc $(FFMPEG_BC) $(FFMPEG_DEPS) \
+		--pre-js $(PRE_JS) \
+		--post-js $(POST_JS) \
+		$(EMCC_COMMON_ARGS) -lnodefs.js
+
+ffmpeg-web.js: $(FFMPEG_DEPS) $(FFMPEG_BC) $(PRE_JS_WEB) $(POST_JS_WEB)
+	emcc $(FFMPEG_BC) $(FFMPEG_DEPS) \
+		--pre-js $(PRE_JS_WEB) \
+		--post-js $(POST_JS_WEB) \
+		$(EMCC_COMMON_ARGS) -lworkerfs.js

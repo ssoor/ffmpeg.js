@@ -88,23 +88,26 @@ Imagine that you have installed FFmpeg on your computer.  Also imagine that you 
 
               <button class="plain-button sample" data-command="-codecs">List Codecs</button>
 
-              <button class="plain-button sample" data-command="-i input.jpeg -vf vflip output.jpeg">Vertical Flip Image</button>
+              <button class="plain-button sample" data-command="-i fs/input.jpeg -vf vflip output.jpeg">Vertical Flip Image</button>
 
-              <button class="plain-button sample" data-command="-i input.jpeg -vf hflip output.jpeg">Horizontal Flip Image</button>
+              <button class="plain-button sample" data-command="-i fs/input.jpeg -vf hflip output.jpeg">Horizontal Flip Image</button>
 
-              <button class="plain-button sample" data-command="-i input.webm -vf showinfo -strict -2 output.mp4">Video to .mp4</button>
+              <button class="plain-button sample" data-command="-i fs/input.webm -vf showinfo -strict -2 output.mp4">Video to .mp4</button>
 
-              <button class="plain-button sample" data-command="-t 5 -i input.webm -vf showinfo -strict -2 output.gif">Video to .gif</button>
+              <button class="plain-button sample" data-command="-t 5 -i fs/input.webm -vf showinfo -strict -2 output.gif">Video to .gif</button>
 
-              <button class="plain-button sample" data-command="-i input.webm -s 100x100 -f image2 -vf fps=fps=1,showinfo -an out%d.jpeg">Video to screenshots</button>
+              <button class="plain-button sample" data-command="-i fs/input.webm -s 100x100 -f image2 -vf fps=fps=1,showinfo -an out%d.jpeg">Video to screenshots</button>
 
-              <button class="plain-button sample" data-command="-i input.webm -vf &quot;showinfo,drawbox=enable='between(n,0,60)' : x=10 : y=10 : w=50 : h=50 : color=red,drawbox=enable='gte(t,1)' : x=100 : y=100 : w=200 : h=200 : color=green&quot; -strict -2 output.mp4">Draw Boxes on Video</button>
+              <button class="plain-button sample" data-command="-i fs/input.webm -vf &quot;showinfo,drawbox=enable='between(n,0,60)' : x=10 : y=10 : w=50 : h=50 : color=red,drawbox=enable='gte(t,1)' : x=100 : y=100 : w=200 : h=200 : color=green&quot; -strict -2 output.mp4">Draw Boxes on Video</button>
 
-              <button class="plain-button sample" data-command="-t 3 -i input.webm -vf showinfo -strict -2 -c:v libx264 output.mp4">H.264</button>
+              <button class="plain-button sample" data-command="-t 3 -i fs/input.webm -vf showinfo -strict -2 -c:v libx264 output.mp4">H.264</button>
 
-              <button class="plain-button sample" data-command="-t 3 -i input.webm -vf showinfo -strict -2 -c:v libvpx-vp9 output.webm">VP9</button>
+              <button class="plain-button sample" data-command="-t 3 -i fs/input.webm -vf showinfo -strict -2 -c:v libvpx-vp9 output.webm">VP9</button>
 
             </div>
+
+            <input type="file" id="files-reader" multiple >
+
             <div id="terminal">
               <div class="terminal-top-bar">
                 videoconverter.js

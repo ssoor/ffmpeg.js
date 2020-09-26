@@ -5,6 +5,7 @@ var sampleImageData;
 var sampleVideoData;
 var outputElement;
 var filesElement;
+var filesReaderElement;
 var renderElement;
 var running = false;
 var isWorkerLoaded = false;
@@ -100,24 +101,27 @@ function runCommand(text) {
     worker.postMessage({
       type: "run",
       arguments: args,
-      files: [
-        {
-          "name": "input.jpeg",
-          "data": sampleImageData
-        },
-        {
-          "name": "input.webm",
-          "data": sampleVideoData
-        },
-        {
-          "name": "sample.vtt",
-          "data": sampleFiles["sample.vtt"]
-        },
-        {
-          "name": "sample.mp4",
-          "data": sampleFiles["sample.mp4"]
-        }
-      ]
+      fs: {
+        "mems": [
+          {
+            "name": "input.jpeg",
+            "data": sampleImageData
+          },
+          {
+            "name": "input.webm",
+            "data": sampleVideoData
+          },
+          {
+            "name": "sample.vtt",
+            "data": sampleFiles["sample.vtt"]
+          },
+          {
+            "name": "sample.mp4",
+            "data": sampleFiles["sample.mp4"]
+          }
+        ],
+        "files": filesReaderElement.files
+      }
     });
   }
 }
@@ -135,7 +139,7 @@ function getRenderElement(fileName, src) {
     var img = document.createElement('img');
     img.src = src;
     return img;
-  } else if (fileName.match(/\.mp4|\.avi|\.mkv|\.png/)) {
+  } else if (fileName.match(/\.mp4|\.avi|\.mkv|\.ogg|\.aac|\.mp3/)) {
     var video = document.createElement('video');
     video.src = src;
     video.controls = "controls";
@@ -190,6 +194,7 @@ document.addEventListener("DOMContentLoaded", function () {
   outputElement = document.querySelector("#output");
   filesElement = document.querySelector("#files");
   renderElement = document.querySelector("#render");
+  filesReaderElement = document.querySelector("#files-reader");
 
   inputElement.addEventListener("keydown", function (e) {
     if (e.keyCode === 13) {

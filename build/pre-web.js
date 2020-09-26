@@ -17,14 +17,14 @@ function __ffmpegjs(__ffmpegjs_opts) {
     return data;
   }
 
-  Object.keys(__ffmpegjs_opts).forEach(function(key) {
-    if (["mounts", "files", "onExit", "chdir"].indexOf(key) < 0) {
+  Object.keys(__ffmpegjs_opts).forEach(function (key) {
+    if (["mounts", "fs", "onExit", "chdir"].indexOf(key) < 0) {
       Module[key] = __ffmpegjs_opts[key];
     }
   });
 
   // Mute exception on unreachable.
-  abort = function(what) {
+  abort = function (what) {
     if (arguments.length) {
       __ffmpegjs_abort(what);
     } else {
@@ -35,7 +35,7 @@ function __ffmpegjs(__ffmpegjs_opts) {
   // Fix CR.
   function __ffmpegjs_out(cb) {
     var buf = [];
-    return function(ch, flush) {
+    return function (ch, flush) {
       if (flush && buf.length) return cb(UTF8ArrayToString(buf, 0));
       if (ch === 10 || ch === 13) {
         if (ENVIRONMENT_IS_NODE) buf.push(ch);
@@ -46,23 +46,23 @@ function __ffmpegjs(__ffmpegjs_opts) {
       }
     };
   }
-  Module["stdin"] = Module["stdin"] || function() {};
-  Module["stdout"] = Module["stdout"] || __ffmpegjs_out(function(line) { out(line) });
-  Module["stderr"] = Module["stderr"] || __ffmpegjs_out(function(line) { err(line) });
+  Module["stdin"] = Module["stdin"] || function () { };
+  Module["stdout"] = Module["stdout"] || __ffmpegjs_out(function (line) { out(line) });
+  Module["stderr"] = Module["stderr"] || __ffmpegjs_out(function (line) { err(line) });
   if (typeof process === "object") {
     Module["print"] = Module["print"] || process.stdout.write.bind(process.stdout);
     Module["printErr"] = Module["printErr"] || process.stderr.write.bind(process.stderr);
   }
 
   // Disable process.exit in nodejs and don't call onExit twice.
-  Module["quit"] = function(status) {
+  Module["quit"] = function (status) {
     Module["stdout"](0, true);
     Module["stderr"](0, true);
     if (__ffmpegjs_opts["onExit"]) __ffmpegjs_opts["onExit"](status);
   };
 
-  Module["preRun"] = function() {
-    (__ffmpegjs_opts["mounts"] || []).forEach(function(mount) {
+  Module["preRun"] = function () {
+    (__ffmpegjs_opts["mounts"] || []).forEach(function (mount) {
       var fs = FS.filesystems[mount["type"]];
       if (!fs) {
         throw new Error("Bad mount type");
@@ -71,33 +71,38 @@ function __ffmpegjs(__ffmpegjs_opts) {
       // NOTE(Kagami): Subdirs are not allowed in the paths to simplify
       // things and avoid ".." escapes.
       if (!mountpoint.match(/^\/[^\/]+$/) ||
-          mountpoint === "/." ||
-          mountpoint === "/.." ||
-          mountpoint === "/tmp" ||
-          mountpoint === "/home" ||
-          mountpoint === "/dev" ||
-          mountpoint === "/work") {
+        mountpoint === "/." ||
+        mountpoint === "/.." ||
+        mountpoint === "/tmp" ||
+        mountpoint === "/home" ||
+        mountpoint === "/dev" ||
+        mountpoint === "/work") {
         throw new Error("Bad mount point");
       }
       FS.mkdir(mountpoint);
       FS.mount(fs, mount["opts"], mountpoint);
     });
 
-    FS.mkdir("/work");
-    FS.chdir(__ffmpegjs_opts["chdir"] || "/work");
-
-    (__ffmpegjs_opts["files"] || []).forEach(function(file) {
+    var __ffmpegjs_fs = __ffmpegjs_opts["fs"] || [];
+    (__ffmpegjs_fs["mems"] || []).forEach(function (file) {
       if (file["name"].match(/\//)) {
         throw new Error("Bad file name");
       }
-      var fd = FS.open(file["name"], "w+");
-      var data = __ffmpegjs_toU8(file["data"]);
-      FS.write(fd, data, 0, data.length);
-      FS.close(fd);
+
+      if (file["data"] instanceof Uint8Array) {
+        file["data"] = new Blob([file["data"]]);
+      }
     });
+
+    FS.mkdir("/work");
+    FS.mkdir("/work/fs");
+
+    FS.chdir(__ffmpegjs_opts["chdir"] || "/work");
+
+    FS.mount(FS.filesystems.WORKERFS, { blobs: __ffmpegjs_fs["mems"] || [], files: __ffmpegjs_fs["files"] || [] }, "/work/fs")
   };
 
-  Module["postRun"] = function() {
+  Module["postRun"] = function () {
     // NOTE(Kagami): Search for files only in working directory, one
     // level depth. Since FFmpeg shouldn't normally create
     // subdirectories, it should be enough.
@@ -110,20 +115,31 @@ function __ffmpegjs(__ffmpegjs_opts) {
       if (contents.__proto__ && contents.__proto__.name === "__proto__") {
         filenames.push("__proto__");
       }
-      return filenames.map(function(filename) {
+      return filenames.map(function (filename) {
         return contents[filename];
       });
     }
 
     var inFiles = Object.create(null);
-    (__ffmpegjs_opts["files"] || []).forEach(function(file) {
+
+    inFiles["fs"] = null
+
+    var __ffmpegjs_fs = __ffmpegjs_opts["fs"] || [];
+
+    var files = (__ffmpegjs_fs["files"] || [])
+    for (var i = 0; i < files.length; i++) {
+      inFiles[files[i].name] = null;
+    }
+
+    (__ffmpegjs_fs["mems"] || []).forEach(function (file) {
       inFiles[file.name] = null;
     });
-    var outFiles = listFiles("/work").filter(function(file) {
+
+    var outFiles = listFiles("/work").filter(function (file) {
       return !(file.name in inFiles);
-    }).map(function(file) {
+    }).map(function (file) {
       var data = __ffmpegjs_toU8(file.contents);
-      return {"name": file.name, "data": data};
+      return { "name": file.name, "data": data };
     });
-    __ffmpegjs_return = {"files": outFiles};
+    __ffmpegjs_return = { "files": outFiles };
   };
