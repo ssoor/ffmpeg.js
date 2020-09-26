@@ -11,20 +11,32 @@ COMMON_FILTERS = aresample scale crop overlay hstack vstack showinfo
 COMMON_DEMUXERS = matroska ogg mov mp3 wav image2 concat
 COMMON_DECODERS = vp8 h264 vorbis opus mp3 aac pcm_s16le mjpeg png
 
-MP4_DEPS = \
-	build/dist/lib/libmp3lame.so \
-	build/dist/lib/libx264.so
+MP3_DEPS = \
+	build/dist/lib/libmp3lame.so
+MP3_DEPS_ARGS = \
+	--enable-libmp3lame
 	
-MP4_MUXERS = mp4 mp3
-MP4_ENCODERS = libx264 libmp3lame aac
+MP3_MUXERS = mp3
+MP3_ENCODERS = libmp3lame
+
+MP4_DEPS = \
+	build/dist/lib/libx264.so
+MP4_DEPS_ARGS = \
+	--enable-libx264
+	
+MP4_MUXERS = mp4
+MP4_ENCODERS = libx264 aac
 
 WEBM_DEPS = \
 	build/dist/lib/libvpx.so
+WEBM_DEPS_ARGS = \
+	--enable-libvpx
 
 WEBM_MUXERS = webm ogg
 WEBM_ENCODERS = libvpx_vp8 libopus
 
 FFMPEG_DEPS = $(MP4_DEPS) $(WEBM_DEPS)
+FFMPEG_DEPS_ARGS = $(MP4_DEPS_ARGS) $(WEBM_DEPS_ARGS)
 FFMPEG_MUXERS = $(MP4_MUXERS) $(WEBM_MUXERS) null 
 FFMPEG_ENCODERS = $(MP4_ENCODERS) $(WEBM_ENCODERS)
 
@@ -37,14 +49,12 @@ js: ffmpeg.js
 web: ffmpeg-web.js
 
 clean: clean-js clean-dist \
-	clean-opus clean-libvpx \
+	clean-libvpx \
 	clean-lame clean-x264 clean-ffmpeg
 clean-js:
 	rm -f ffmpeg*.js
 clean-dist:
 	cd build/ && rm -rf dist
-clean-opus:
-	cd build/opus && git clean -xdf
 clean-libvpx:
 	cd build/libvpx && git clean -xdf
 clean-lame:
@@ -52,7 +62,7 @@ clean-lame:
 clean-x264:
 	cd build/x264 && git clean -xdf
 clean-ffmpeg:
-	cd build/ffmpeg-mp4 && git clean -xdf
+	cd build/ffmpeg && git clean -xdf
 
 build/opus/configure:
 	cd build/opus && ./autogen.sh
@@ -192,13 +202,14 @@ FFMPEG_COMMON_ARGS = \
 	--enable-zlib
 
 build/dist/ffmpeg.bc:
-	cd build/ffmpeg-mp4 && \
+	cd build/ffmpeg && \
 	EM_PKG_CONFIG_PATH=$(FFMPEG_PC_PATH) emconfigure ./configure \
+		--prefix="$$(pwd)/../dist" \
 		$(FFMPEG_COMMON_ARGS) \
 		$(addprefix --enable-encoder=,$(FFMPEG_ENCODERS)) \
 		$(addprefix --enable-muxer=,$(FFMPEG_MUXERS)) \
 		--enable-gpl \
-		--enable-libx264 \
+		$(FFMPEG_DEPS_ARGS) \
 		--extra-cflags="-s USE_ZLIB=1 -I../dist/include" \
 		--extra-ldflags="-L../dist/lib -shared" && \
 	sed -i 's/EXESUF=/EXESUF=.bc/' ffbuild/config.mak && \
@@ -206,7 +217,7 @@ build/dist/ffmpeg.bc:
 	cp ffmpeg.bc ../dist/ffmpeg.bc
 
 EMCC_COMMON_ARGS = \
-	-O3 \
+	-O2 \
 	--closure 1 \
 	--memory-init-file 0 \
 	-s WASM=0 \
@@ -216,15 +227,16 @@ EMCC_COMMON_ARGS = \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
 	-s TOTAL_MEMORY=67108864 \
-	--pre-js $(PRE_JS) \
 	-o $@
 
 ffmpeg.js: $(FFMPEG_DEPS) $(FFMPEG_BC) $(PRE_JS) $(POST_JS)
 	emcc $(FFMPEG_BC) $(FFMPEG_DEPS) \
+		--pre-js $(PRE_JS) \
 		--post-js $(POST_JS) \
 		$(EMCC_COMMON_ARGS) -lnodefs.js
 
 ffmpeg-web.js: $(FFMPEG_DEPS) $(FFMPEG_BC) $(PRE_JS_WEB) $(POST_JS_WEB)
 	emcc $(FFMPEG_BC) $(FFMPEG_DEPS) \
+		--pre-js $(PRE_JS_WEB) \
 		--post-js $(POST_JS_WEB) \
 		$(EMCC_COMMON_ARGS) -lworkerfs.js
