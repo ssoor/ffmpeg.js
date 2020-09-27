@@ -139,7 +139,12 @@ function getRenderElement(fileName, src) {
     var img = document.createElement('img');
     img.src = src;
     return img;
-  } else if (fileName.match(/\.mp4|\.avi|\.mkv|\.ogg|\.aac|\.mp3/)) {
+  } else if (fileName.match(/\.mp4|\.avi|\.mkv|\.webm|\.aac|\.mp3/)) {
+    var video = document.createElement('video');
+    video.src = src;
+    video.controls = "controls";
+    return video;
+  } else if (fileName.match(/\.wav|\.ogg|\.acc|\.mp3|\.aac|\.mp3/)) {
     var video = document.createElement('video');
     video.src = src;
     video.controls = "controls";
