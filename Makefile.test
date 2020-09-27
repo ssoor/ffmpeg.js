@@ -7,14 +7,16 @@ POST_JS = build/post.js
 PRE_JS_WEB = build/pre-web.js
 POST_JS_WEB = build/post-web.js
 
-FFMPEG_DEPS = 
-FFMPEG_DEPS_ARGS = $(MP4_DEPS_ARGS) $(WEBM_DEPS_ARGS)
+# FFMPEG_DEPS = \
+# 	build/dist/lib/libx264.so
+# FFMPEG_DEPS_ARGS = \
+# 	--enable-libx264
 
-FFMPEG_FILTERS = 
-FFMPEG_MUXERS = ogg adts
-FFMPEG_DEMUXERS = matroska mov
-FFMPEG_ENCODERS = 
-FFMPEG_DECODERS = 
+FFMPEG_FILTERS = aresample loudnorm
+FFMPEG_MUXERS = matroska mov wav ogg adts
+FFMPEG_DEMUXERS = matroska mov wav mp3
+FFMPEG_ENCODERS = vorbis aac pcm_s16le
+FFMPEG_DECODERS = vorbis aac mp3 
 
 FFMPEG_BC = build/dist/ffmpeg.bc
 FFMPEG_PC_PATH = ../dist/lib/pkgconfig
@@ -179,14 +181,10 @@ FFMPEG_COMMON_ARGS = \
   --disable-w32threads \
   --disable-os2threads \
   --disable-network \
-  --disable-dct \
   --disable-dwt \
   --disable-error-resilience \
   --disable-lsp \
   --disable-lzo \
-  --disable-mdct \
-  --disable-rdft \
-  --disable-fft \
   --disable-faan \
   --disable-pixelutils \
   --disable-everything \
@@ -257,11 +255,11 @@ EMCC_COMMON_ARGS = \
 	--memory-init-file 0 \
 	-s WASM=0 \
 	-s WASM_ASYNC_COMPILATION=0 \
-	-s ASSERTIONS=0 \
+	-s ASSERTIONS=1 \
 	-s EXIT_RUNTIME=1 \
 	-s NODEJS_CATCH_EXIT=0 \
 	-s NODEJS_CATCH_REJECTION=0 \
-	-s TOTAL_MEMORY=67108864 \
+	-s ALLOW_MEMORY_GROWTH=1 \
 	-o $@
 
 ffmpeg.js: $(FFMPEG_DEPS) $(FFMPEG_BC) $(PRE_JS) $(POST_JS)
